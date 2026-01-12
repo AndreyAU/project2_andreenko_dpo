@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
-from .engine import welcome
+from .engine import run
 
 
 def main():
-    welcome()
+    run()
 
 
 if __name__ == "__main__":
     main()
+
 
 
 
