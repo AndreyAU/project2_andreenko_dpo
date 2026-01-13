@@ -2,7 +2,15 @@ import shlex
 
 from prettytable import PrettyTable
 
-from .core import create_table, delete, drop_table, insert, list_tables, select, update
+from .core import (
+    create_table,
+    delete,
+    drop_table,
+    insert,
+    list_tables,
+    select,
+    update,
+)
 from .parser import parse_set, parse_where
 from .utils import (
     load_metadata,
@@ -50,7 +58,7 @@ def run():
             table_name = params[0]
             columns = params[1:]
 
-            metadata = load_metadata(META_FILE)
+            metadata = load_metadata(META_FILE) or {}
             metadata = create_table(metadata, table_name, columns)
             save_metadata(META_FILE, metadata)
 
@@ -78,7 +86,10 @@ def run():
 
             if len(params) > 2:
                 if len(params) < 5 or params[2] != "where":
-                    print("Синтаксис: select from <table> where <field> = <value>")
+                    print(
+                        "Синтаксис: select from <table> "
+                        "where <field> = <value>"
+                    )
                     continue
 
                 where_str = " ".join(params[3:])
@@ -123,6 +134,9 @@ def run():
             table_data = load_table_data(table_name)
             new_data = delete(table_data, where_clause)
 
+            if new_data is None:
+                continue
+
             if len(new_data) == len(table_data):
                 print("Удаление не выполнено.")
                 continue
@@ -131,9 +145,11 @@ def run():
             print("Записи успешно удалены.")
 
         elif command == "update":
-            # update <table> set <field> = <value> where <field> = <value>
             if len(params) < 6 or params[1] != "set" or "where" not in params:
-                print("Синтаксис: update <table> set <field> = <value> where <field> = <value>")
+                print(
+                    "Синтаксис: update <table> set <field> = <value> "
+                    "where <field> = <value>"
+                )
                 continue
 
             table_name = params[0]
@@ -149,8 +165,19 @@ def run():
                 print(e)
                 continue
 
+            metadata = load_metadata(META_FILE)
             table_data = load_table_data(table_name)
-            new_data = update(table_data, set_clause, where_clause)
+
+            new_data = update(
+                metadata,
+                table_name,
+                table_data,
+                set_clause,
+                where_clause,
+            )
+
+            if new_data is None:
+                continue
 
             save_table_data(table_name, new_data)
             print("Записи успешно обновлены.")
@@ -167,6 +194,10 @@ def run():
             table_name = params[0]
             metadata = load_metadata(META_FILE)
             metadata = drop_table(metadata, table_name)
+
+            if metadata is None:
+                continue
+
             save_metadata(META_FILE, metadata)
 
         else:

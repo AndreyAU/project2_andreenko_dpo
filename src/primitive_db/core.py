@@ -1,5 +1,9 @@
+from .decorators import confirm_action, handle_db_errors, log_time
+from .utils import create_cacher
+
 ALLOWED_TYPES = {"int", "str", "bool"}
 
+select_cache = create_cacher()
 
 
 
@@ -31,20 +35,28 @@ def create_table(metadata, table_name, columns):
     return metadata
 
 
+
+
+@handle_db_errors
+@confirm_action("удаление таблицы")
 def drop_table(metadata, table_name):
     if table_name not in metadata:
-        print(f'Ошибка: Таблица "{table_name}" не существует.')
-        return metadata
+        raise KeyError(table_name)
 
     del metadata[table_name]
     print(f'Таблица "{table_name}" успешно удалена.')
-
     return metadata
 
+
+
+
+
+
+@handle_db_errors
+@log_time
 def insert(metadata, table_name, values, table_data):
     if table_name not in metadata:
-        print(f'Ошибка: Таблица "{table_name}" не существует.')
-        return table_data or []
+        raise KeyError(table_name)
 
     if table_data is None:
         table_data = []
@@ -53,8 +65,7 @@ def insert(metadata, table_name, values, table_data):
     columns = schema[1:]  # без ID
 
     if len(values) != len(columns):
-        print("Некорректное количество значений.")
-        return table_data
+        raise ValueError("Некорректное количество значений.")
 
     cleaned_values = []
     for v in values:
@@ -68,7 +79,6 @@ def insert(metadata, table_name, values, table_data):
         cleaned_values.append(v)
 
     new_id = max((row["ID"] for row in table_data), default=0) + 1
-
     record = {"ID": new_id}
 
     for (col_name, col_type), value in zip(columns, cleaned_values):
@@ -80,8 +90,7 @@ def insert(metadata, table_name, values, table_data):
             elif col_type == "str":
                 value = str(value)
         except ValueError:
-            print(f"Некорректное значение: {value} для типа {col_type}")
-            return table_data
+            raise ValueError(f"Некорректное значение: {value} для типа {col_type}")
 
         record[col_name] = value
 
@@ -93,26 +102,42 @@ def insert(metadata, table_name, values, table_data):
 
 
 
+@handle_db_errors
+@log_time
 def select(table_data, where_clause=None):
-    if where_clause is None:
-        return table_data
+    key = (str(table_data), str(where_clause))
 
-    result = []
+    def calculate():
+        if where_clause is None:
+            return table_data
 
-    for row in table_data:
-        match = True
-        for key, value in where_clause.items():
-            if key not in row or row[key] != value:
-                match = False
-                break
+        result = []
+        for row in table_data:
+            match = True
+            for key_, value in where_clause.items():
+                if key_ not in row or row[key_] != value:
+                    match = False
+                    break
+            if match:
+                result.append(row)
+        return result
 
-        if match:
-            result.append(row)
-
-    return result
+    return select_cache(key, calculate)
 
 
-def update(table_data, set_clause, where_clause):
+
+
+@handle_db_errors
+def update(metadata, table_name, table_data, set_clause, where_clause):
+    if table_name not in metadata:
+        raise KeyError(table_name)
+
+    schema_columns = {name for name, _ in metadata[table_name]}
+
+    for key in set_clause:
+        if key not in schema_columns:
+            raise KeyError(key)
+
     updated = False
 
     for row in table_data:
@@ -133,8 +158,8 @@ def update(table_data, set_clause, where_clause):
     return table_data
 
 
-   
-
+@handle_db_errors
+@confirm_action("удаление записей")
 def delete(table_data, where_clause):
     new_data = []
     deleted = False
@@ -155,8 +180,6 @@ def delete(table_data, where_clause):
         print("Подходящие записи не найдены.")
 
     return new_data
-
-
 
 
 def list_tables(metadata):
