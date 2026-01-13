@@ -44,3 +44,36 @@ $ database
 
 👉 https://asciinema.org/a/aSZnKfpEvD0JrGKR
 
+
+---
+
+## CRUD-операции
+
+Ниже приведены примеры использования CRUD-команд (Create, Read, Update, Delete)
+для работы с данными таблиц через CLI-интерфейс базы данных.
+
+Примеры добавления данных (Insert):
+
+insert into users values ("Sergei", 28, true)
+insert into users values ("Anna", 25, false)
+
+Примеры чтения данных (Select):
+
+select from users
+select from users where age = 28
+select from users where name = Sergei
+
+Примеры обновления данных (Update):
+
+update users set age = 30 where name = Sergei
+update users set is_active = false where age = 30
+
+Примеры удаления данных (Delete):
+
+delete from users where age = 28
+delete from users where name = Anna
+
+ДЕМОНСТРАЦИЯ РАБОТЫ
+https://asciinema.org/a/e8CNIoyiYOfkTkeB
+
+
